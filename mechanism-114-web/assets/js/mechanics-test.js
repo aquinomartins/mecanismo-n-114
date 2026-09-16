@@ -1,0 +1,20 @@
+(() => {
+  'use strict';
+  const M=window.Mechanism114,{G,motion}=M,TAU=Math.PI*2,eps=1e-7,results=[];
+  const check=(name,pass,detail='')=>results.push({teste:name,resultado:pass?'PASSOU':'FALHOU',detalhe:detail});
+  const near=(a,b,t=eps)=>Math.abs(a-b)<t;
+  const boundaries=[0,G.d,Math.PI-G.d,Math.PI+G.d,TAU-G.d,TAU];
+  check('Continuidade de x(θ)',boundaries.every(t=>near(motion(t-eps).x,motion(t+eps).x,2e-4)));
+  const samples=360,values=Array.from({length:samples+1},(_,i)=>motion(TAU*i/samples).x);
+  check('Varredura ≥ 240 posições',samples>=240,`${samples} amostras`);
+  check('Curso total = 5πm',near(Math.max(...values)-Math.min(...values),G.S,1e-5));
+  check('Derivada inferior = −rₚ',near(motion(Math.PI/2).dx,-G.rp));
+  check('Derivada superior = +rₚ',near(motion(3*Math.PI/2).dx,G.rp));
+  check('Derivada nas transferências = 0',motion(0).dx===0&&motion(Math.PI).dx===0);
+  check('Limites respeitados',values.every(x=>x<=G.S/2+eps&&x>=-G.S/2-eps));
+  check('Perfil involuta SVG válido',/^M[\d.-]+,[\d.-]+L/.test(M.toothPath()));
+  check('Fonte angular única sincroniza SVG e gráfico',M.state&&typeof M.state.theta==='number');
+  const passed=results.every(r=>r.resultado==='PASSOU');
+  console.group(`Mecanismo 114 — testes mecânicos: ${passed?'PASSOU':'FALHOU'}`);console.table(results);console.groupEnd();
+  window.MECHANICS_TEST_RESULTS={passed,results,samples};
+})();
