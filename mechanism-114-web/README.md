@@ -1,6 +1,6 @@
 # Mecanismo nº 114
 
-Página técnica, mobile-first e sem dependências externas para demonstrar o pinhão mutilado com cremalheira dupla. O desenho é SVG vetorial e a cinemática é calculada em JavaScript a partir de uma única variável angular.
+Landing page imersiva, responsiva e sem dependências de aplicação para apresentar o estudo cinemático do pinhão mutilado com cremalheira dupla. A experiência usa uma narrativa de 11 cenas controlada por rolagem, painéis técnicos, visualizações em CSS/SVG e partículas em Canvas.
 
 ## Executar
 
@@ -11,28 +11,18 @@ cd mechanism-114-web
 php -S localhost:8000
 ```
 
-Abra `http://localhost:8000`. Para visualizar círculos primitivo e de base, linhas de ação, zonas de repouso e envelopes de alívio, use `http://localhost:8000/?debug=1`.
+Abra `http://localhost:8000`. O conteúdo, links e indicações de material provisório ficam centralizados no array `$project` e em `$scenes`, no início de `index.php`.
 
-## Operação
+## Interações
 
-Mantenha **PRESSIONE E SEGURE** acionado com mouse, toque ou caneta. Pelo teclado, mantenha `Espaço` ou `Enter`. Soltar, cancelar o ponteiro, trocar de aba ou perder o foco abre imediatamente o contato NA e preserva a posição.
+- Role a página ou use os indicadores laterais para percorrer as 11 cenas.
+- Use o menu compacto em telas menores.
+- Abra qualquer demonstração para testar o modal acessível (os vídeos finais ainda são provisórios).
+- O formulário do rodapé valida o e-mail localmente e informa explicitamente que não realiza envio.
+- Ative “reduzir movimento” no sistema para eliminar movimentos decorativos.
 
-## Decisões mecânicas
+## Arquivos principais
 
-- Geometria paramétrica baseada em `m = 8`, com `z = 12`, raio primitivo `6m`, adendo `m`, dedendo `1,25m` e ângulo de pressão de 25°.
-- Seis dentes nas posições −75°, −45°, −15°, +15°, +45° e +75°. Cada face é amostrada pela parametrização da involuta do círculo-base até o círculo de adendo.
-- Cremalheiras conjugadas com cinco dentes e flancos retos a 25°. A abertura ampla e os alívios terminais mantêm livre o setor descarregado durante a transferência.
-- Lei de movimento linear por trechos, sem easing: cursos de 150°, transferências em repouso de 30° e velocidade angular `2π/5 rad/s`.
-- O mesmo `state.theta` posiciona pinhão, moldura, indicador e marcador do gráfico usando `requestAnimationFrame` e tempo real transcorrido.
-
-## Verificação
-
-`mechanics-test.js` varre 360 posições por revolução e registra no console continuidade, curso, derivadas por fase, limites e integridade do perfil. O modo de depuração torna visível a geometria de construção para inspeção quadro a quadro.
-
-## Arquivos
-
-- `index.php`: parâmetros, conteúdo semântico e SVG;
-- `assets/css/style.css`: identidade editorial e responsividade;
-- `assets/js/mechanism-114.js`: geometria, cinemática, renderização e controles;
-- `assets/js/mechanics-test.js`: verificações mecânicas automáticas;
-- `assets/img/reference.svg`: captura vetorial da implementação em uma viewport de 390 × 844, mantida como texto para compatibilidade com revisão de código e diffs.
+- `index.php`: configuração editável, conteúdo semântico e componentes da página;
+- `assets/css/style.css`: direção visual, transições de cenas e responsividade;
+- `assets/js/mechanism-114.js`: sincronização com rolagem, navegação, modal, formulário e Canvas.

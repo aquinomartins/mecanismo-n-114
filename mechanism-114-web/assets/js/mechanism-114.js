@@ -1,89 +1,109 @@
 (() => {
   'use strict';
-  const cfg = window.MECHANISM_CONFIG;
-  const NS = 'http://www.w3.org/2000/svg';
-  const TAU = Math.PI * 2;
-  const G = Object.freeze({
-    m: cfg.module, z: cfg.teeth, alpha: cfg.pressureAngle * Math.PI / 180,
-    p: Math.PI * cfg.module, rp: 6 * cfg.module, ra: 7 * cfg.module,
-    rf: 4.75 * cfg.module, rb: 6 * cfg.module * Math.cos(cfg.pressureAngle * Math.PI / 180),
-    S: 5 * Math.PI * cfg.module, d: Math.PI / 12, omega: TAU / cfg.period
+  const stage = document.querySelector('.stage');
+  const anchors = [...document.querySelectorAll('.scene-anchor')];
+  const dots = [...document.querySelectorAll('.scene-nav a')];
+  const config = window.PROJECT_CONFIG;
+  const title = document.querySelector('#scene-title');
+  const kicker = document.querySelector('#scene-kicker');
+  const text = document.querySelector('#scene-text');
+  let active = -1;
+
+  function setScene(index) {
+    if (index === active || index < 0 || index >= anchors.length) return;
+    active = index;
+    stage.dataset.scene = String(index);
+    const scene = config.scenes[index];
+    kicker.textContent = `${String(index + 1).padStart(2, '0')} · ${scene[1]}`;
+    title.textContent = scene[2];
+    text.textContent = scene[3];
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === index);
+      if (i === index) dot.setAttribute('aria-current', 'step');
+      else dot.removeAttribute('aria-current');
+    });
+  }
+
+  const observer = new IntersectionObserver(entries => {
+    const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (visible) setScene(Number(visible.target.dataset.scene));
+  }, { threshold: [.25, .5, .75], rootMargin: '-20% 0px -20% 0px' });
+  anchors.forEach(anchor => observer.observe(anchor));
+  setScene(0);
+
+  // Build connection lines once; card identities stay constant as their positions change.
+  const group = document.querySelector('#connection-lines');
+  [[580,180,510,330],[580,180,760,330],[510,330,510,520],[760,330,760,520],[510,520,580,610],[760,520,760,610],[510,330,760,520]].forEach(points => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    ['x1','y1','x2','y2'].forEach((attr, i) => line.setAttribute(attr, points[i]));
+    group.appendChild(line);
   });
-  const state = { theta: 0, energized: false, lastTime: null, pointerId: null, keys: new Set() };
-  const $ = (id) => document.getElementById(id);
-  const svgEl = (name, attrs = {}) => { const e = document.createElementNS(NS, name); Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k,v)); return e; };
-  const norm = theta => ((theta % TAU) + TAU) % TAU;
 
-  function motion(theta) {
-    const t = norm(theta), half = G.S / 2;
-    if (t < G.d || t > TAU - G.d) return { x: half, phase: 'rest', active: 'none', dx: 0 };
-    if (t <= Math.PI - G.d) return { x: half - G.rp * (t - G.d), phase: 'lower', active: 'inferior', dx: -G.rp };
-    if (t < Math.PI + G.d) return { x: -half, phase: 'rest', active: 'none', dx: 0 };
-    return { x: -half + G.rp * (t - Math.PI - G.d), phase: 'upper', active: 'superior', dx: G.rp };
-  }
+  const menuButton = document.querySelector('.menu-toggle');
+  const menu = document.querySelector('#menu');
+  menuButton.addEventListener('click', () => {
+    const open = menu.classList.toggle('open');
+    menuButton.setAttribute('aria-expanded', String(open));
+  });
+  menu.addEventListener('click', () => { menu.classList.remove('open'); menuButton.setAttribute('aria-expanded', 'false'); });
 
-  // Parametrização polar exata da involuta; as duas faces são espelhadas.
-  function involutePoint(radius, side) {
-    const t = Math.sqrt(Math.max(0, radius * radius / (G.rb * G.rb) - 1));
-    const inv = t - Math.atan(t);
-    const pitchT = Math.sqrt(G.rp * G.rp / (G.rb * G.rb) - 1);
-    const pitchInv = pitchT - Math.atan(pitchT);
-    const halfTooth = Math.PI / (2 * G.z) - 0.08 * G.m / (2 * G.rp);
-    const angle = side * (halfTooth + pitchInv - inv);
-    return [radius * Math.cos(angle), radius * Math.sin(angle)];
+  const demoToggle = document.querySelector('#demo-toggle');
+  demoToggle.addEventListener('click', () => {
+    const enabled = demoToggle.classList.toggle('enabled');
+    demoToggle.lastChild.textContent = enabled ? ' Pausar mecanismo' : ' Acionar mecanismo';
+    demoToggle.nextElementSibling.querySelector('b').textContent = enabled ? 'em movimento' : 'pronto';
+  });
+
+  // Accessible provisional video dialog: native dialog handles focus trapping.
+  const dialog = document.querySelector('#video-modal');
+  const modalTitle = document.querySelector('#modal-title');
+  let opener = null;
+  document.querySelectorAll('.open-video').forEach(button => button.addEventListener('click', () => {
+    opener = button;
+    modalTitle.textContent = button.dataset.video || 'Demonstração';
+    dialog.showModal();
+    dialog.querySelector('.modal-close').focus();
+  }));
+  function closeDialog() { dialog.close(); opener?.focus(); }
+  dialog.querySelector('.modal-close').addEventListener('click', closeDialog);
+  dialog.addEventListener('click', event => { if (event.target === dialog) closeDialog(); });
+  dialog.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
+
+  const form = document.querySelector('#contact-form');
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const input = form.querySelector('input');
+    const status = form.querySelector('.form-status');
+    if (!input.validity.valid) {
+      status.textContent = 'Informe um e-mail válido.';
+      status.style.color = '#fbbf24';
+      input.focus();
+      return;
+    }
+    status.textContent = 'E-mail validado. Demonstração sem envio real.';
+    status.style.color = '#34d399';
+  });
+
+  // Low-density canvas particles, capped at 2× resolution and paused off-screen.
+  const canvas = document.querySelector('#particles');
+  const ctx = canvas.getContext('2d');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let points = [], frame = 0, running = !document.hidden && !reduced;
+  function resize() {
+    const ratio = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = innerWidth * ratio; canvas.height = innerHeight * ratio;
+    canvas.style.width = `${innerWidth}px`; canvas.style.height = `${innerHeight}px`;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    const count = innerWidth < 600 ? 20 : 52;
+    points = Array.from({ length: count }, () => ({ x: Math.random()*innerWidth, y: Math.random()*innerHeight, r: Math.random()*1.2+.25, v: Math.random()*.08+.02 }));
   }
-  function toothPath() {
-    const left = [], right = [];
-    for (let i=0;i<=8;i++) { const r=G.rb+(G.ra-G.rb)*i/8; left.push(involutePoint(r,1)); right.push(involutePoint(r,-1)); }
-    const polar=(r,a)=>[r*Math.cos(a),r*Math.sin(a)];
-    const lRoot=polar(G.rf,Math.atan2(left[0][1],left[0][0]));
-    const rRoot=polar(G.rf,Math.atan2(right[0][1],right[0][0]));
-    const pts=[lRoot,...left,...right.reverse(),rRoot];
-    return `M${pts.map(p=>p.map(n=>n.toFixed(2)).join(',')).join('L')}Z`;
+  function draw() {
+    if (!running) return;
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    points.forEach(p => { p.y -= p.v; if (p.y < -3) p.y = innerHeight+3; ctx.fillStyle='#8b9bd0'; ctx.globalAlpha=.2+p.r*.12; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); });
+    ctx.globalAlpha=1; frame=requestAnimationFrame(draw);
   }
-  function buildGear() {
-    const d = toothPath();
-    [-75,-45,-15,15,45,75].forEach(angle => $('gear-teeth').append(svgEl('path',{d,class:'gear-tooth',transform:`rotate(${angle})`})));
-    $('gear').setAttribute('transform','translate(400 250)');
-  }
-  function rackToothPath(cx, upper) {
-    const h=G.m, half=(G.p/4)-0.04*G.m, run=h*Math.tan(G.alpha), base=upper?180:320, tip=upper?base+h:base-h;
-    return `M${cx-half-run},${base} L${cx-half},${tip} L${cx+half},${tip} L${cx+half+run},${base} Z`;
-  }
-  function buildRacks() {
-    [-2,-1,0,1,2].forEach(i=>{ const cx=400+i*G.p; $('top-rack').append(svgEl('path',{d:rackToothPath(cx,true)})); $('bottom-rack').append(svgEl('path',{d:rackToothPath(cx,false)})); });
-  }
-  function buildChart() {
-    let d=''; for(let i=0;i<=360;i++){const t=TAU*i/360, q=motion(t), px=45+690*i/360, py=85-q.x/(G.S/2)*65; d += `${i?'L':'M'}${px.toFixed(2)},${py.toFixed(2)}`;} $('motion-path').setAttribute('d',d);
-  }
-  let announcedPhase='';
-  function render() {
-    const t=norm(state.theta), q=motion(t), shift=q.x;
-    $('gear').setAttribute('transform',`translate(400 250) rotate(${t*180/Math.PI})`);
-    $('moving-frame').setAttribute('transform',`translate(${shift} 0)`);
-    $('velocity').setAttribute('transform',q.phase==='lower'?'scale(-1 1) translate(-800 0)':'');
-    $('velocity').style.opacity=q.phase==='rest'?'0':'1';
-    const px=45+690*t/TAU, py=85-q.x/(G.S/2)*65;
-    $('chart-cursor').setAttribute('x1',px); $('chart-cursor').setAttribute('x2',px); $('chart-dot').setAttribute('cx',px); $('chart-dot').setAttribute('cy',py);
-    $('x-output').value=`x/m = ${q.x/G.m>=0?'+':'−'}${Math.abs(q.x/G.m).toFixed(2).replace('.',',')}`;
-    const label=q.phase==='lower'?'ENGATE INFERIOR · CURSO PARA A ESQUERDA':q.phase==='upper'?'ENGATE SUPERIOR · CURSO PARA A DIREITA':'TRANSFERÊNCIA SEM CARGA · MOLDURA EM REPOUSO';
-    if(label!==announcedPhase){$('engagement').textContent=label;announcedPhase=label;}
-    if ($('debug-readout')) $('debug-readout').textContent=`θ ${(t*180/Math.PI).toFixed(1)}° · x ${(q.x/G.m).toFixed(3)}m · ${q.active}`;
-  }
-  function frame(now) { if(state.lastTime===null) state.lastTime=now; const dt=Math.min((now-state.lastTime)/1000,.1); state.lastTime=now; if(state.energized){state.theta=norm(state.theta+G.omega*dt);render();} requestAnimationFrame(frame); }
-  function setEnergy(on) { if(state.energized===on)return; state.energized=on; const b=$('hold-button'); b.setAttribute('aria-pressed',String(on)); b.classList.toggle('is-pressed',on); $('electrical-state').textContent=on?'● CONTATO FECHADO · MOTOR ENERGIZADO':'○ CONTATO ABERTO · MOTOR DESENERGIZADO'; }
-  function bindControl() {
-    const b=$('hold-button');
-    b.addEventListener('pointerdown',e=>{e.preventDefault();state.pointerId=e.pointerId;b.setPointerCapture(e.pointerId);setEnergy(true);});
-    const release=e=>{if(state.pointerId===null||!e||e.pointerId===state.pointerId){state.pointerId=null;setEnergy(state.keys.size>0);}};
-    ['pointerup','pointercancel','lostpointercapture'].forEach(type=>b.addEventListener(type,release));
-    const relevant=e=>e.code==='Space'||e.code==='Enter';
-    b.addEventListener('keydown',e=>{if(relevant(e)){e.preventDefault();state.keys.add(e.code);setEnergy(true);}});
-    b.addEventListener('keyup',e=>{if(relevant(e)){e.preventDefault();state.keys.delete(e.code);setEnergy(state.pointerId!==null||state.keys.size>0);}});
-    const stop=()=>{state.pointerId=null;state.keys.clear();setEnergy(false);};
-    window.addEventListener('blur',stop); window.addEventListener('pointerup',release); document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
-  }
-  if(new URLSearchParams(location.search).get('debug')==='1') document.documentElement.classList.add('debug');
-  buildGear();buildRacks();buildChart();bindControl();render();requestAnimationFrame(frame);
-  window.Mechanism114={G,state,motion,norm,toothPath,render,setEnergy};
+  addEventListener('resize', resize, { passive:true });
+  document.addEventListener('visibilitychange', () => { running = !document.hidden && !reduced; cancelAnimationFrame(frame); if(running) draw(); });
+  resize(); if(running) draw();
 })();
